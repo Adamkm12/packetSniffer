@@ -51,7 +51,8 @@ def main():
                 print('\t\t- Other IPv4 Protocol:')
                 print(format_multi_line('\t\t\t', data))
         
-
+        if eth_proto == 0x0806:  # ARP
+            opcode, sender_mac, sender_ip, target_mac, target_ip = arp_packet(data)
 
 
 # HELPER FUNCTIONS
@@ -106,7 +107,5 @@ def format_multi_line(prefix, string, size=80):
     return '\n'.join([prefix + line for line in textwrap.wrap(string, size)])
 
 
-
-
-
-main()
+if __name__ == '__main__':
+    main()
