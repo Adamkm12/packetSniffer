@@ -52,37 +52,40 @@ def main():
                 print(format_multi_line('\t\t\t', data))
         
         elif eth_proto == 0x0806:  # ARP
-            dispositivosReply = {}
-            dispositivosRequest = {}
+            devices = {} # MAC, IP, first_con, last_con, reply_count, request_count
+            request_window = {} # IP, timestamp, count
             opcode, sender_mac, sender_ip, target_mac, target_ip = arp_packet(data)
             
             # REPLY and REQUEST COUNT
             if opcode == "REPLY":
-                if sender_ip not in dispositivosReply:
+                if sender_ip not in devices:
                     print(f"New reply (ARP): {sender_ip}")
-                    dispositivosReply[sender_ip] = {
+                    devices[sender_ip] = {
                         'mac': sender_mac,
                         'first_con': time.time(),
                         'last_con': time.time(),
                         'reply_count': 1
                     }
                 else:
-                    # Actualizamos varias claves a la vez
-                    dispositivosReply[sender_ip].update({
+
+                    devices[sender_ip].update({
                         'last_con': time.time(),
-                        'reply_count': dispositivosReply[sender_ip]['reply_count'] + 1
+                        'reply_count': devices[sender_ip]['reply_count'] + 1
                     })
 
             elif opcode == "REQUEST":
-                if sender_ip not in dispositivosRequest:
+                if sender_ip not in devices:
                     print(f"New request (ARP): {sender_ip}")
-                    dispositivosRequest[sender_ip] = {
+                    devices[sender_ip] = {
                         'request_count': 1,
-                        'reply_count': dispositivosReply[sender_ip]['reply_count'] if sender_ip in dispositivosReply else 0
                     }
                 else:
-                    dispositivosRequest[sender_ip]['request_count'] += 1
+                    devices[sender_ip]['request_count'] += 1
 
+                request_window[sender_ip] = {
+                    'count': request_window[sender_ip]['count'] + 1 if sender_ip in request_window else 1,
+                    'timestamp': time.time()
+                }            
                 
 
 
