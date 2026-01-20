@@ -60,6 +60,7 @@ def ethernet_frame(data):
     dest_mac, src_mac, proto = struct.unpack('! 6s 6s H', data[:14])
     return get_mac_addr(dest_mac), get_mac_addr(src_mac), socket.htons(proto), data[14:]
 # FUNCTION TO FORMAT MAC ADDRESS
+
 def get_mac_addr(bytes_addr):
     bytes_str = map('{:02x}'.format, bytes_addr)
     return ':'.join(bytes_str).upper()
@@ -75,7 +76,6 @@ def ipv4_packet(data):
 # FUNCTION TO FORMAT IPV4 ADDRESS
 def ipv4(addr):
     return '.'.join(map(str, addr))
-
 
 # UNPACK ICMP PACKET
 def icmp_packet(data):
@@ -106,6 +106,15 @@ def format_multi_line(prefix, string, size=80):
         string = ''.join(r'\x{:02x}'.format(byte) for byte in string)
     return '\n'.join([prefix + line for line in textwrap.wrap(string, size)])
 
+def arp_packet(data):
+    hw_type, proto_type, hw_size, proto_size, opcode = struct.unpack('! H H B B H', data[:8])
+    sender_mac = get_mac_addr(data[8:14])
+    sender_ip = ipv4(data[14:18])
+    target_mac = get_mac_addr(data[18:24])
+    target_ip = ipv4(data[24:28])
+    print('\t- ARP Packet:')
+    print(f'\t\t- Opcode: {opcode}, Sender MAC: {sender_mac}, Sender IP: {sender_ip}, Target MAC: {target_mac}, Target IP: {target_ip}')
+    return opcode, sender_mac, sender_ip, target_mac, target_ip
 
 if __name__ == '__main__':
     main()
