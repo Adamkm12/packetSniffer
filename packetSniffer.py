@@ -108,6 +108,7 @@ def format_multi_line(prefix, string, size=80):
 
 def arp_packet(data):
     hw_type, proto_type, hw_size, proto_size, opcode = struct.unpack('! H H B B H', data[:8])
+    opcode = 'REQUEST' if opcode == 1 else 'REPLY' if opcode == 2 else 'UNKNOWN'
     sender_mac = get_mac_addr(data[8:14])
     sender_ip = ipv4(data[14:18])
     target_mac = get_mac_addr(data[18:24])
