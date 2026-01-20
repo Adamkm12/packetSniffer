@@ -52,22 +52,37 @@ def main():
                 print(format_multi_line('\t\t\t', data))
         
         elif eth_proto == 0x0806:  # ARP
-            dispositivos = {}
+            dispositivosReply = {}
+            dispositivosRequest = {}
             opcode, sender_mac, sender_ip, target_mac, target_ip = arp_packet(data)
-            # REPLY COUNT
-            if sender_ip not in dispositivos:
-                print(f"New con (ARP): {sender_ip}")
-                dispositivos[sender_ip]={
-                    'mac':sender_mac,
-                    'first_con':time.time(),
-                    'last_con':time.time(),
-                    'reply_count': 1
-                }
-            else:
-                dispositivos.update[sender_ip]={
-                    'last con':time.time(),
-                    'reply_count':dispositivos[sender_ip]['reply_count'] + 1
-                }
+            
+            # REPLY and REQUEST COUNT
+            if opcode == "REPLY":
+                if sender_ip not in dispositivosReply:
+                    print(f"New reply (ARP): {sender_ip}")
+                    dispositivosReply[sender_ip] = {
+                        'mac': sender_mac,
+                        'first_con': time.time(),
+                        'last_con': time.time(),
+                        'reply_count': 1
+                    }
+                else:
+                    # Actualizamos varias claves a la vez
+                    dispositivosReply[sender_ip].update({
+                        'last_con': time.time(),
+                        'reply_count': dispositivosReply[sender_ip]['reply_count'] + 1
+                    })
+
+            elif opcode == "REQUEST":
+                if sender_ip not in dispositivosRequest:
+                    print(f"New request (ARP): {sender_ip}")
+                    dispositivosRequest[sender_ip] = {
+                        'request_count': 1,
+                        'reply_count': dispositivosReply[sender_ip]['reply_count'] if sender_ip in dispositivosReply else 0
+                    }
+                else:
+                    dispositivosRequest[sender_ip]['request_count'] += 1
+
                 
 
 
