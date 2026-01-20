@@ -1,7 +1,7 @@
 import socket
 import struct
 import textwrap
-
+import time
 def main():
     # CREATE A RAW SOCKET
     conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
@@ -51,8 +51,24 @@ def main():
                 print('\t\t- Other IPv4 Protocol:')
                 print(format_multi_line('\t\t\t', data))
         
-        if eth_proto == 0x0806:  # ARP
+        elif eth_proto == 0x0806:  # ARP
+            dispositivos = {}
             opcode, sender_mac, sender_ip, target_mac, target_ip = arp_packet(data)
+            # REPLY COUNT
+            if sender_ip not in dispositivos:
+                print(f"New con (ARP): {sender_ip}")
+                dispositivos[sender_ip]={
+                    'mac':sender_mac,
+                    'first_con':time.time(),
+                    'last_con':time.time(),
+                    'reply_count': 1
+                }
+            else:
+                dispositivos.update[sender_ip]={
+                    'last con':time.time(),
+                    'reply_count':dispositivos[sender_ip]['reply_count'] + 1
+                }
+                
 
 
 # HELPER FUNCTIONS
@@ -108,7 +124,7 @@ def arp_packet(data):
     target_IP=ipv4_packet(target_IP)
     opCode = 'REQUEST' if opCode == 1 else 'REPLY' if opCode == 2 else 'UNKNOWN'
 
-    return 
+    return opCode, sender_MAC, sender_IP, target_MAC, target_IP
 
 
 
