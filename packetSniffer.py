@@ -5,11 +5,12 @@ import time
 
 devices = {} # MAC, IP, first_con, last_con, reply_count, request_count
 request_window = {} # IP, timestamp, count
-threshold = 300
+threshold = 50
 clean = 60
-last_clean=time.time()
 
 def main():
+    global last_clean
+    last_clean=time.time()
     # CREATE A RAW SOCKET
     conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
     while True:
@@ -65,7 +66,7 @@ def main():
             check_time_request(sender_ip)
             arp_spoofing(devices, sender_ip, sender_mac)
         
-        if last_clean - now >= clean:
+        if now - last_clean >= clean:
             clean_inactive_devices(devices)
             last_clean = now
     
@@ -121,7 +122,7 @@ def udp_segment(data):
 
 # UNPACK ARP PACKET
 def arp_packet(data):
-    opCode, sender_MAC, sender_IP, target_MAC, target_IP = struct.unpack('! B 6s L 6s L',data)
+    opCode, sender_MAC, sender_IP, target_MAC, target_IP = struct.unpack('! 6x H 6s 6s 4s 4s',data[:28])
     sender_MAC=get_mac_addr(sender_MAC)
     sender_IP=ipv4_packet(sender_IP)
     target_MAC=get_mac_addr(target_MAC)
@@ -136,45 +137,40 @@ def add_update(opcode, sender_ip, sender_mac):
             if sender_ip not in devices:
                 print(f"New con: {sender_ip}")
                 devices[sender_ip] = {
-                    'Mac': {sender_mac},
-                    'first connection': time.time(),
-                    'last connection': time.time(),
+                    'mac': sender_mac,
+                    'first_connection': time.time(),
+                    'last_connection': time.time(),
                     'reply_count': 0,
                     'request_count': 0
                 }
 
             if opcode == "REQUEST":
-                devices.update[sender_ip]={
-                    'request_count': devices[sender_ip]['request_count'] + 1
-                }
+                devices[sender_ip]['request_count'] += 1
 
             elif opcode == "REPLY":
-                devices.update[sender_ip]={
-                    'reply_count': devices[sender_ip]['reply_count'] + 1
-                }
+                devices[sender_ip]['reply_count'] += 1
 
 # CHECK TIME REQUEST
 def check_time_request(sender_ip):
-        time_dif= time.time() - devices[sender_ip]['last seen']
-        rpm = devices[sender_ip]['request_count'] / (time_dif / 60)
-        if rpm > threshold:
-            print(f"+300 request per minute from {devices[sender_ip]}")
+        time_dif= time.time() - devices[sender_ip]['first_connection']
+        if time_dif > 0:
+            rpm = devices[sender_ip]['request_count'] / (time_dif / 60)
+            if rpm > threshold:
+                print(f"+50 request per minute from {devices[sender_ip]}")
 
 # CLEAN TTL
-def clean_inactive_devices(devices, timeout=300):
+def clean_inactive_devices(timeout=300):
     current_time = time.time()
     
     for ip in list(devices.keys()):
-        if current_time - devices[ip]['last_con'] > timeout:
+        if current_time - devices[ip]['last_connection'] > timeout:
             print(f"Removing inactive device: {ip}")
             del devices[ip]
 
-
 # ARP SPOOFING
-def arp_spoofing(devices, sender_ip, sender_mac):
+def arp_spoofing(sender_ip, sender_mac):
     if sender_ip in devices and devices[sender_ip]['mac'] != sender_mac:
         print(f"ARP SPOOFING: {sender_ip} <> old mac:{devices[sender_ip]['mac']}, new mac:{sender_mac}")
-
 
 # Formats multi-line data
 def format_multi_line(prefix, string, size=80):
