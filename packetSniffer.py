@@ -6,18 +6,19 @@ import time
 devices = {} # MAC, IP, first_con, last_con, reply_count, request_count
 request_window = {} # IP, timestamp, count
 threshold = 300
-
+clean = 60
+last_clean=time.time()
 
 def main():
     # CREATE A RAW SOCKET
     conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
-
     while True:
         raw_data, addr = conn.recvfrom(65536)
         dest_mac, src_mac, eth_proto, data = ethernet_frame(raw_data)
-
+        now = time.time() #FOR CLEANING
         print('\nEthernet Frame:')
         print(f'Destination: {dest_mac}, Source: {src_mac}, Protocol: {eth_proto}')
+
         # IPV4
         if eth_proto == 8:
             (version, header_length, ttl, proto, src, target, data) = ipv4_packet(data)
@@ -57,9 +58,20 @@ def main():
                 print('\t\t- Other IPv4 Protocol:')
                 print(format_multi_line('\t\t\t', data))
         
-        elif eth_proto == 0x0806:  # ARP
+        # ARP
+        elif eth_proto == 0x0806:
             opcode, sender_mac, sender_ip, target_mac, target_ip = arp_packet(data)
-            
+            add_update(opcode, sender_ip, sender_mac)
+            check_time_request(sender_ip)
+            arp_spoofing(devices, sender_ip, sender_mac)
+        
+        if last_clean - now >= clean:
+            clean_inactive_devices(devices)
+            last_clean = now
+    
+
+        
+
             
 
 
@@ -118,7 +130,6 @@ def arp_packet(data):
 
     return opCode, sender_MAC, sender_IP, target_MAC, target_IP
 
-
 # ADD/UPDATE DEVICES
 def add_update(opcode, sender_ip, sender_mac):
             # REPLY and REQUEST COUNT
@@ -142,9 +153,6 @@ def add_update(opcode, sender_ip, sender_mac):
                     'reply_count': devices[sender_ip]['reply_count'] + 1
                 }
 
-                
-
-
 # CHECK TIME REQUEST
 def check_time_request(sender_ip):
         time_dif= time.time() - devices[sender_ip]['last seen']
@@ -162,6 +170,10 @@ def clean_inactive_devices(devices, timeout=300):
             del devices[ip]
 
 
+# ARP SPOOFING
+def arp_spoofing(devices, sender_ip, sender_mac):
+    if sender_ip in devices and devices[sender_ip]['mac'] != sender_mac:
+        print(f"ARP SPOOFING: {sender_ip} <> old mac:{devices[sender_ip]['mac']}, new mac:{sender_mac}")
 
 
 # Formats multi-line data
