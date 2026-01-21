@@ -2,6 +2,12 @@ import socket
 import struct
 import textwrap
 import time
+
+devices = {} # MAC, IP, first_con, last_con, reply_count, request_count
+request_window = {} # IP, timestamp, count
+threshold = 300
+
+
 def main():
     # CREATE A RAW SOCKET
     conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
@@ -52,41 +58,9 @@ def main():
                 print(format_multi_line('\t\t\t', data))
         
         elif eth_proto == 0x0806:  # ARP
-            devices = {} # MAC, IP, first_con, last_con, reply_count, request_count
-            request_window = {} # IP, timestamp, count
             opcode, sender_mac, sender_ip, target_mac, target_ip = arp_packet(data)
             
-            # REPLY and REQUEST COUNT
-            if opcode == "REPLY":
-                if sender_ip not in devices:
-                    print(f"New reply (ARP): {sender_ip}")
-                    devices[sender_ip] = {
-                        'mac': sender_mac,
-                        'first_con': time.time(),
-                        'last_con': time.time(),
-                        'reply_count': 1
-                    }
-                else:
-
-                    devices[sender_ip].update({
-                        'last_con': time.time(),
-                        'reply_count': devices[sender_ip]['reply_count'] + 1
-                    })
-
-            elif opcode == "REQUEST":
-                if sender_ip not in devices:
-                    print(f"New request (ARP): {sender_ip}")
-                    devices[sender_ip] = {
-                        'request_count': 1,
-                    }
-                else:
-                    devices[sender_ip]['request_count'] += 1
-
-                request_window[sender_ip] = {
-                    'count': request_window[sender_ip]['count'] + 1 if sender_ip in request_window else 1,
-                    'timestamp': time.time()
-                }            
-                
+            
 
 
 # HELPER FUNCTIONS
@@ -145,6 +119,47 @@ def arp_packet(data):
     return opCode, sender_MAC, sender_IP, target_MAC, target_IP
 
 
+# ADD/UPDATE DEVICES
+def add_update(opcode, sender_ip, sender_mac):
+            # REPLY and REQUEST COUNT
+            if sender_ip not in devices:
+                print(f"New con: {sender_ip}")
+                devices[sender_ip] = {
+                    'Mac': {sender_mac},
+                    'first connection': time.time(),
+                    'last connection': time.time(),
+                    'reply_count': 0,
+                    'request_count': 0
+                }
+
+            if opcode == "REQUEST":
+                devices.update[sender_ip]={
+                    'request_count': devices[sender_ip]['request_count'] + 1
+                }
+
+            elif opcode == "REPLY":
+                devices.update[sender_ip]={
+                    'reply_count': devices[sender_ip]['reply_count'] + 1
+                }
+
+                
+
+
+# CHECK TIME REQUEST
+def check_time_request(sender_ip):
+        time_dif= time.time() - devices[sender_ip]['last seen']
+        rpm = devices[sender_ip]['request_count'] / (time_dif / 60)
+        if rpm > threshold:
+            print(f"+300 request per minute from {devices[sender_ip]}")
+
+# CLEAN TTL
+def clean_inactive_devices(devices, timeout=300):
+    current_time = time.time()
+    
+    for ip in list(devices.keys()):
+        if current_time - devices[ip]['last_con'] > timeout:
+            print(f"Removing inactive device: {ip}")
+            del devices[ip]
 
 
 
