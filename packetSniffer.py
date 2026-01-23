@@ -3,9 +3,10 @@ import struct
 import textwrap
 import time
 
-devicesIPV = {}
+devicesIPV4 = {}
 devicesARP = {} # MAC, IP, first_con, last_con, reply_count, request_count
 request_window = {} # IP, timestamp, count
+arpSpoof = {}
 threshold = 50
 clean = 60
 
@@ -23,10 +24,12 @@ def main():
 
         # IPV4
         if eth_proto == 8:
-            (version, header_length, ttl, proto, src, target, data) = ipv4_packet(data)
+            (version, header_length, ttl, proto, src_ip, target, data) = ipv4_packet(data)
             print('\t- IPv4 Packet:')
             print(f'\t\t- Version: {version}, Header Length: {header_length}, TTL: {ttl}')
-            print(f'\t\t- Protocol: {proto}, Source: {src}, Target: {target}')
+            print(f'\t\t- Protocol: {proto}, Source: {src_ip}, Target: {target}')
+            add_update_IPV4(src_ip, src_mac)
+
 
             # ICMP
             if proto == 1:
@@ -63,7 +66,7 @@ def main():
         # ARP
         elif eth_proto == 0x0806:
             opcode, sender_mac, sender_ip, target_mac, target_ip = arp_packet(data)
-            add_update(opcode, sender_ip, sender_mac)
+            add_update_ARP(opcode, sender_ip, sender_mac)
             check_time_request(sender_ip)
             arp_spoofing(devicesARP, sender_ip, sender_mac)
         
@@ -133,7 +136,7 @@ def arp_packet(data):
     return opCode, sender_MAC, sender_IP, target_MAC, target_IP
 
 # ADD/UPDATE DEVICES ARP
-def add_update(opcode, sender_ip, sender_mac):
+def add_update_ARP(opcode, sender_ip, sender_mac):
             # REPLY and REQUEST COUNT
             if sender_ip not in devicesARP:
                 print(f"New con: {sender_ip}")
@@ -171,11 +174,24 @@ def clean_inactive_devices(timeout=300):
 # ARP SPOOFING
 def arp_spoofing(sender_ip, sender_mac):
     if sender_ip in devicesARP and devicesARP[sender_ip]['mac'] != sender_mac:
+        arpSpoof[sender_ip] = {
+            'mac': devicesARP[sender_ip]['mac'],
+            'new_mac': sender_mac,
+            'time': time.strftime("%Y-%m-%d %H:%M:%S")
+        }
         print(f"ARP SPOOFING: {sender_ip} <> old mac:{devicesARP[sender_ip]['mac']}, new mac:{sender_mac}")
 
+# ADD/UPDATE IPV4
+def add_update_IPV4(src_ip, src_mac):
+    devicesIPV4[src_ip] = {
+       'mac': src_mac
+    }
+
 # IP SPOOFING
-def ip_spoofing(sender_ip, sender_mac):
-    if sender_ip not in devicesARP:
+def ip_spoofing(src_ip, sender_ip):
+    if sender_ip in devicesARP:
+        
+
         return
 
 
