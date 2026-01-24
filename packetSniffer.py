@@ -25,10 +25,9 @@ def main():
         # IPV4
         if eth_proto == 8:
             (version, header_length, ttl, proto, src_ip, target, data) = ipv4_packet(data)
-            print('\t- IPv4 Packet:')
-            print(f'\t\t- Version: {version}, Header Length: {header_length}, TTL: {ttl}')
-            print(f'\t\t- Protocol: {proto}, Source: {src_ip}, Target: {target}')
+            packet_length = get_packet_length(data)
             add_update_IPV4(src_ip, src_mac)
+            ip_spoofing(src_ip)
 
 
             # ICMP
@@ -188,12 +187,14 @@ def add_update_IPV4(src_ip, src_mac):
     }
 
 # IP SPOOFING
-def ip_spoofing(src_ip, sender_ip):
-    if sender_ip in devicesARP:
-        
-
-        return
-
+def ip_spoofing(src_ip):
+    if src_ip in devicesARP:
+        if devicesARP[src_ip]['mac'] != devicesIPV4[src_ip]['mac']:
+            print(f"Possible IP SPOOFING: {src_ip} \n mac ARP {devicesARP[src_ip]['mac']} \n mac IPV4 {devicesIPV4[src_ip]['mac']}")
+            
+# GET PACKET LENGHT
+def get_packet_length(data):
+    return struct.unpack('! H', data[2:4])[0]
 
 
 
