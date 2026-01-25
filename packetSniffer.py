@@ -108,8 +108,8 @@ def update_device(ip, mac, source='ipv4'):
         
         devices[ip]['last_seen'] = now
 
-# FUNCIONES DE DETECCIÓN
 
+# FUNCIONES DE DETECCIÓN
 def check_ip_spoofing(src_ip, src_mac):
     """Verifica si la MAC del IPv4 coincide con la conocida por ARP"""
     if src_ip in devices:
@@ -118,7 +118,7 @@ def check_ip_spoofing(src_ip, src_mac):
 
 
 def check_arp_flood(sender_ip):
-    """Detecta ARP request flooding"""
+    """ARP request flooding"""
     if sender_ip not in devices:
         return
     
@@ -132,7 +132,6 @@ def check_arp_flood(sender_ip):
 
 
 def clean_inactive_devices():
-    """Elimina dispositivos inactivos"""
     current_time = time.time()
     inactive = []
     
@@ -143,8 +142,8 @@ def clean_inactive_devices():
     for ip in inactive:
         del devices[ip]
 
-# FUNCIONES DE PARSEO
 
+# FUNCIONES DE PARSEO
 def ethernet_frame(data):
     dest_mac, src_mac, proto = struct.unpack('! 6s 6s H', data[:14])
     return get_mac_addr(dest_mac), get_mac_addr(src_mac), socket.htons(proto), data[14:]
