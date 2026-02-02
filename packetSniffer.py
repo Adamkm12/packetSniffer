@@ -8,6 +8,10 @@ import time
 ARP_REQUEST_THRESHOLD = 50  # requests per minute
 TTL = 300                   # inactive seconds
 CLEAN_INTERVAL = 60         # clean every 60 sec
+BANDWIDTH_THRESHOLD = 10 * 1024 * 1024
+BANDWIDTH_INTERVAL = 30
+ICMP_CHECK_INTERVAL = 10
+ICMP_THRESHOLD = 50
 
 
 devices = {}
@@ -26,7 +30,7 @@ devices = {}
 # TIMERS
 # ══════════════════════════════════════════
 last_clean = time.time()
-
+last_icmp_check = time.time()
 
 def main():
     global last_clean
@@ -42,6 +46,7 @@ def main():
         # IPv4
         # ═══════════════════════════════════════════════
         if eth_proto == 8:
+            packet_length = get_packet_length(data)
             (version, header_length, ttl, proto, src_ip, dst_ip, data) = ipv4_packet(data)
             
             update_device(src_ip, src_mac, 'ipv4')
@@ -62,6 +67,9 @@ def main():
             # UDP
             elif proto == 17:
                 src_port, dest_port, size, data = udp_segment(data)
+            
+            if src_ip in devices:
+                devices[src_ip]['bandwidth_bytes'] += packet_length
         
         # ═══════════════════════════════════════════════
         # ARP
@@ -101,6 +109,7 @@ def update_device(ip, mac, source='ipv4'):
             'arp_replies': 0,
             'spoofing_count': 0,
             'icmp_count': 0,
+            'bandwidth_bytes': 0
         }
     else:
         if devices[ip]['mac'] != mac:
@@ -131,12 +140,20 @@ def check_arp_flood(sender_ip):
         if rpm > ARP_REQUEST_THRESHOLD:
             print(f"ARP_FLOOD: {sender_ip} sending {rpm:.1f} requests/min")
 
-def check_icmp_flood(sender_ip):
-    if sender_ip not in devices:
-        return
+def check_icmp_flood():
+    """Verifica ICMP flood cada 10 segundos"""
+    for ip, data in devices.items():
+        if data['icmp_count'] > ICMP_THRESHOLD:
+            pps = data['icmp_count'] / ICMP_CHECK_INTERVAL  # pings per second
+            print(f"ICMP_FLOOD: {ip} sent {data['icmp_count']} pings in {ICMP_CHECK_INTERVAL}s ({pps:.1f} pings/s)")
+    
+    # Resetear contadores
+    for ip in devices:
+        devices[ip]['icmp_count'] = 0
+
+def check_bandwidth(packet_length):
     
     return
-
 
 def clean_inactive_devices():
     current_time = time.time()
@@ -207,6 +224,10 @@ def arp_packet(data):
     
     return opCode, sender_MAC, sender_IP, target_MAC, target_IP
 
+def get_packet_length(data):
+    #Extract header ipv4
+
+    return struct.unpack('! H', data[2:4])[0]
 
 if __name__ == '__main__':
     main()
