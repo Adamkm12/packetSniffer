@@ -50,7 +50,7 @@ def main():
             # ICMP
             if proto == 1:
                 icmp_type, code, checksum, data = icmp_packet(data)
-                devices[sender_ip]['icmp-count'] += 1
+                devices[sender_ip]['icmp_count'] += 1
                 # TODO: Aquí añadirás ICMP flood detection
             
             # TCP
@@ -102,6 +102,7 @@ def update_device(ip, mac, source='ipv4'):
             'spoofing_count': 0,
             'icmp_count': 0,
         }
+    else:
         if devices[ip]['mac'] != mac:
             devices[ip]['spoofing_count'] += 1
             print(f"SPOOFING: {ip} changed MAC from {devices[ip]['mac']} to {mac}")
@@ -116,7 +117,6 @@ def check_ip_spoofing(src_ip, src_mac):
     if src_ip in devices:
         if devices[src_ip]['mac'] != src_mac:
             pass  # Ya detectado en update_device()
-
 
 def check_arp_flood(sender_ip):
     """ARP request flooding"""
