@@ -171,8 +171,14 @@ def check_icmp_flood():
         devices[ip]['icmp_count'] = 0
 
 def check_bandwidth():
-    
-    return
+    for ip in devices:
+        if devices[ip]['bandwidth_bytes'] > BANDWIDTH_THRESHOLD:
+            megabytes = devices[ip]['bandwidth_bytes'] / (1024 * 1024)
+            print(f"BANDWIDTH_HOG: {ip} used {megabytes:.2f} MB in {BANDWIDTH_INTERVAL}s")
+
+    # Resetear contadores        
+    for ip in devices:
+        devices[ip]['bandwidth_bytes'] = 0
 
 def clean_inactive_devices():
     current_time = time.time()
