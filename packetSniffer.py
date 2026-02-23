@@ -14,6 +14,7 @@ ICMP_CHECK_INTERVAL = 10
 ICMP_THRESHOLD = 50
 
 
+
 devices = {}
 
 # Example:
@@ -23,7 +24,8 @@ devices = {}
 #     'last_seen': timestamp,
 #     'arp_requests': 0,
 #     'arp_replies': 0,
-#     'spoofing_count': 0
+#     'spoofing_count': 0,
+#     'bandwidth_bytes':0
 # }
 
 # ══════════════════════════════════════════
@@ -31,6 +33,7 @@ devices = {}
 # ══════════════════════════════════════════
 last_clean = time.time()
 last_icmp_check = time.time()
+last_bandwidth_check = time.time()
 
 def main():
     global last_clean
@@ -55,7 +58,9 @@ def main():
             # ICMP
             if proto == 1:
                 icmp_type, code, checksum, data = icmp_packet(data)
-                devices[sender_ip]['icmp_count'] += 1
+                if icmp_type == 8:
+                    if src_ip in devices:
+                        devices[src_ip]['icmp_count'] += 1
                 # TODO: Aquí añadirás ICMP flood detection
             
             # TCP
@@ -86,10 +91,24 @@ def main():
                     devices[sender_ip]['arp_replies'] += 1
             
             check_arp_flood(sender_ip)
+
+
         
         # ═══════════════════════════════════════════════
         # LIMPIEZA PERIÓDICA
         # ═══════════════════════════════════════════════
+        if now - last_clean >= CLEAN_INTERVAL:
+            clean_inactive_devices()
+            last_clean = now
+
+        if now - last_icmp_check >= ICMP_CHECK_INTERVAL:
+            check_icmp_flood()  # ← AÑADIR LLAMADA
+            last_icmp_check = now
+
+        if now - last_bandwidth_check >= BANDWIDTH_INTERVAL:
+            check_bandwidth()
+            last_bandwidth_check = now
+
         if now - last_clean >= CLEAN_INTERVAL:
             clean_inactive_devices()
             last_clean = now
@@ -151,7 +170,7 @@ def check_icmp_flood():
     for ip in devices:
         devices[ip]['icmp_count'] = 0
 
-def check_bandwidth(packet_length):
+def check_bandwidth():
     
     return
 
