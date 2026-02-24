@@ -2,6 +2,8 @@ import socket
 import struct
 import time
 import json
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 
 # ══════════════════════════════════════════
@@ -31,7 +33,7 @@ devices = {}
 # }
 
 alerts = []
-lock = threading.lock()
+lock = threading.Lock()
 
 syn_tracker = {}
 # Example:
@@ -49,7 +51,8 @@ last_bandwidth_check = time.time()
 
 def main():
     global last_clean
-    
+    hilo = threading.Thread(target=run_server)
+    hilo.start()
     conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
     
     #BLOQUE ANALIZADOR
@@ -124,16 +127,24 @@ def main():
 
 
 
-    #SERVIDOR HTTPS
+
+#SERVIDOR HTTPS
 def manejadorHTTPS(ruta):
     if ruta == '/devices':
         with lock:
             copia = dict(devices)
-        respuesta = json.dump(copia, indent=2)
+        respuesta = json.dumps(copia, indent=2)
     if ruta == '/alerts':
         with lock:
-            copia = dict(alerts)
-        respuesta = json.dump(alerts, indent=2)
+            copia = list(alerts)
+        respuesta = json.dumps(alerts, indent=2)
+
+def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler):
+    server_address = ('', 8000)
+    httpd = server_class(server_address, handler_class)
+    httpd.serve_forever()
+
+
 
 #===================================================
 
@@ -182,7 +193,7 @@ def check_arp_flood(sender_ip):
         if rpm > ARP_REQUEST_THRESHOLD:
             with lock:
                 #print(f"ARP_FLOOD: {sender_ip} sending {rpm:.1f} requests/min")
-                alerts.append[{'ARP_FLOOD', sender_ip, rpm, 'request/min'}]
+                alerts.append({'tipo':'ARP_FLOOD', 'ip':sender_ip, 'rpm':rpm})
 
 def check_icmp_flood():
     """Verifica ICMP flood cada 10 segundos"""
@@ -191,7 +202,7 @@ def check_icmp_flood():
             pps = data['icmp_count'] / ICMP_CHECK_INTERVAL  # pings per second
             with lock:
                 #print(f"ICMP_FLOOD: {ip} sent {data['icmp_count']} pings in {ICMP_CHECK_INTERVAL}s ({pps:.1f} pings/s)")
-                alerts.append[{'ICMP_FLOOD:', ip, data['icmp_count'], ICMP_CHECK_INTERVAL}]
+                alerts.append({'tipo':'ICMP_FLOOD:', 'ip':ip, 'data':data['icmp_count'], 'interval':ICMP_CHECK_INTERVAL})
     
     # Resetear contadores
     for ip in devices:
@@ -203,7 +214,7 @@ def check_bandwidth():
             megabytes = devices[ip]['bandwidth_bytes'] / (1024 * 1024)
             with lock:
                 #print(f"BANDWIDTH_HOG: {ip} used {megabytes:.2f} MB in {BANDWIDTH_INTERVAL}s")
-                alerts.append[{'BANDWIDTH_HOG', ip, megabytes, 'in', BANDWIDTH_INTERVAL}]
+                alerts.append({'tipo':'BANDWIDTH_HOG', 'ip':ip, 'MB':megabytes, 'interval':BANDWIDTH_INTERVAL})
 
     # Resetear contadores        
     for ip in devices:
