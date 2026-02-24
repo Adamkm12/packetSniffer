@@ -1,6 +1,8 @@
 import socket
 import struct
 import time
+import json
+
 
 # ══════════════════════════════════════════
 # CONFIG
@@ -28,6 +30,16 @@ devices = {}
 #     'bandwidth_bytes':0
 # }
 
+alerts = []
+lock = threading.lock()
+
+syn_tracker = {}
+# Example:
+# syn_tracker[ip] = {
+#     'syn': 150,
+#     'synack': 10
+# }
+
 # ══════════════════════════════════════════
 # TIMERS
 # ══════════════════════════════════════════
@@ -40,6 +52,7 @@ def main():
     
     conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
     
+    #BLOQUE ANALIZADOR
     while True:
         raw_data, addr = conn.recvfrom(65536)
         dest_mac, src_mac, eth_proto, data = ethernet_frame(raw_data)
@@ -109,10 +122,20 @@ def main():
             check_bandwidth()
             last_bandwidth_check = now
 
-        if now - last_clean >= CLEAN_INTERVAL:
-            clean_inactive_devices()
-            last_clean = now
 
+
+    #SERVIDOR HTTPS
+def manejadorHTTPS(ruta):
+    if ruta == '/devices':
+        with lock:
+            copia = dict(devices)
+        respuesta = json.dump(copia, indent=2)
+    if ruta == '/alerts':
+        with lock:
+            copia = dict(alerts)
+        respuesta = json.dump(alerts, indent=2)
+
+#===================================================
 
 # FUNCIONES DE ACTUALIZACIÓN
 def update_device(ip, mac, source='ipv4'):
@@ -157,14 +180,18 @@ def check_arp_flood(sender_ip):
         rpm = devices[sender_ip]['arp_requests'] / (time_diff / 60)
         
         if rpm > ARP_REQUEST_THRESHOLD:
-            print(f"ARP_FLOOD: {sender_ip} sending {rpm:.1f} requests/min")
+            with lock:
+                #print(f"ARP_FLOOD: {sender_ip} sending {rpm:.1f} requests/min")
+                alerts.append[{'ARP_FLOOD', sender_ip, rpm, 'request/min'}]
 
 def check_icmp_flood():
     """Verifica ICMP flood cada 10 segundos"""
     for ip, data in devices.items():
         if data['icmp_count'] > ICMP_THRESHOLD:
             pps = data['icmp_count'] / ICMP_CHECK_INTERVAL  # pings per second
-            print(f"ICMP_FLOOD: {ip} sent {data['icmp_count']} pings in {ICMP_CHECK_INTERVAL}s ({pps:.1f} pings/s)")
+            with lock:
+                #print(f"ICMP_FLOOD: {ip} sent {data['icmp_count']} pings in {ICMP_CHECK_INTERVAL}s ({pps:.1f} pings/s)")
+                alerts.append[{'ICMP_FLOOD:', ip, data['icmp_count'], ICMP_CHECK_INTERVAL}]
     
     # Resetear contadores
     for ip in devices:
@@ -174,7 +201,9 @@ def check_bandwidth():
     for ip in devices:
         if devices[ip]['bandwidth_bytes'] > BANDWIDTH_THRESHOLD:
             megabytes = devices[ip]['bandwidth_bytes'] / (1024 * 1024)
-            print(f"BANDWIDTH_HOG: {ip} used {megabytes:.2f} MB in {BANDWIDTH_INTERVAL}s")
+            with lock:
+                #print(f"BANDWIDTH_HOG: {ip} used {megabytes:.2f} MB in {BANDWIDTH_INTERVAL}s")
+                alerts.append[{'BANDWIDTH_HOG', ip, megabytes, 'in', BANDWIDTH_INTERVAL}]
 
     # Resetear contadores        
     for ip in devices:
@@ -248,6 +277,7 @@ def arp_packet(data):
     opCode = 'REQUEST' if opCode == 1 else 'REPLY' if opCode == 2 else 'UNKNOWN'
     
     return opCode, sender_MAC, sender_IP, target_MAC, target_IP
+
 
 def get_packet_length(data):
     #Extract header ipv4
